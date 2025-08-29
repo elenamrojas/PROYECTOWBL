@@ -1,0 +1,232 @@
+---
+title: "DASHBOARD WBL"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    library(flexdashboard)
+
+---
+
+```{r setup, include=FALSE}
+
+#cargar bibliotecas
+library(flexdashboard)
+library(readr)
+library(tidyverse)
+library(leaflet)
+library(dplyr)
+library(readr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(viridis)
+library(plotly)
+
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Mapa puntuaciones mundiales 2023
+
+Este mapa muestra la puntuación obtenida por cada país en el índice legal de derechos de la mujer. Los colores permiten identificar rápidamente las regiones con mejores y peores condiciones legales para las mujeres. El gráfico ayuda a visualizar la distribución geográfica de las desigualdades legales en el mundo.
+
+
+```{r}
+# Cargar datos
+df <- read_csv("datos/sg_law_indx_clean.csv")
+
+# Tomar solo el último año para cada país
+df_latest <- df %>%
+  group_by(country) %>%
+  filter(year == max(year)) %>%
+  ungroup() %>%
+  mutate(country = case_when(
+    country == "USA" ~ "United States of America",
+    country == "UK" ~ "United Kingdom",
+    country == "Congo, Dem. Rep." ~ "Dem. Rep. Congo",
+    country == "Congo, Rep." ~ "Congo",
+    country == "Central African Republic" ~ "Central African Rep.",
+    country == "South Sudan" ~ "S. Sudan",
+    country == "Cote d'Ivoire" ~ "Côte d'Ivoire",
+    country == "Lao" ~ "Laos",
+    country == "Bosnia and Herzegovina" ~ "Bosnia and Herz.",
+    country == "Czech Republic" ~ "Czechia",
+    country == "UAE" ~ "United Arab Emirates",
+    country == "Slovak Republic" ~ "Slovakia",
+    country == "Dominica" ~ "Dominican Rep.",
+    TRUE ~ country
+  ))
+
+# Cargar geometría de países
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Quitar Antártida
+world <- world %>% filter(name != "Antarctica")
+
+# Unir geometría y datos
+world_data <- left_join(world, df_latest, by = c("name" = "country"))
+
+# Paleta de colores daltónica
+pal <- colorNumeric(palette = viridis(256), domain = world_data$wbl_index)
+
+# Mapa interactivo
+leaflet(world_data) %>%
+  addTiles() %>%
+  addPolygons(
+    fillColor = ~pal(wbl_index),
+    weight = 1,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    label = ~paste0(name, ": ", wbl_index)
+  ) %>%
+  addLegend(pal = pal, values = ~wbl_index, title = "Índice Legal")
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Evolución del Índice Legal: Top 10 países y promedio mundial
+
+Este gráfico de líneas representa la evolución del índice legal de los países con las mejores puntuaciones, comparados con el promedio mundial. Permite observar cómo ha cambiado la situación legal de la mujer a lo largo del tiempo en estos países. La línea del promedio mundial sirve de referencia para contextualizar las tendencias nacionales.
+
+
+```{r}
+
+# Filtrar bottom 10 países 2023 (los de menor puntuación)
+bottom10_2023 <- df %>%
+  filter(year == 2023) %>%
+  arrange(wbl_index) %>%
+  slice(1:10) %>%
+  pull(country)
+
+df_bottom10 <- df %>% filter(country %in% bottom10_2023)
+
+df_world <- df %>%
+  group_by(year) %>%
+  summarise(wbl_index = mean(wbl_index, na.rm = TRUE)) %>%
+  mutate(country = "Mundial")
+
+# Paleta Plotly (10 colores bien diferenciables)
+plotly_colors <- c(
+  "#636EFA", # Azul
+  "#EF553B", # Rojo
+  "#00CC96", # Verde
+  "#AB63FA", # Violeta
+  "#FFA15A", # Naranja claro
+  "#19D3F3", # Cian
+  "#FF6692", # Rosa oscuro
+  "#B6E880", # Verde claro
+  "#FF97FF", # Rosa claro
+  "#FECB52"  # Amarillo
+)
+
+fig <- plot_ly()
+
+# Líneas suavizadas para cada país con la paleta Plotly
+for(i in seq_along(bottom10_2023)) {
+  pais <- bottom10_2023[i]
+  fig <- fig %>% add_trace(
+    data = df_bottom10[df_bottom10$country == pais, ],
+    x = ~year,
+    y = ~wbl_index,
+    type = 'scatter',
+    mode = 'lines',
+    name = pais,
+    line = list(color = plotly_colors[i], width = 2, shape = "spline"),
+    hoverinfo = 'text',
+    text = ~paste0('<b>', pais, '</b><br>Año: ', year, '<br>Puntuación: ', wbl_index)
+  )
+}
+
+# Línea mundial gruesa y naranja brillante
+fig <- fig %>% add_trace(
+  data = df_world,
+  x = ~year,
+  y = ~wbl_index,
+  type = 'scatter',
+  mode = 'lines',
+  name = "Promedio mundial",
+  line = list(color = "#FF9100", width = 8, shape = "spline"),
+  hoverinfo = 'text',
+  text = ~paste0('<b>Promedio mundial</b><br>Año: ', year, '<br>Puntuación: ', wbl_index)
+)
+
+fig %>% layout(
+  title = "Evolución del índice legal: Bottom 10 países y promedio mundial",
+  xaxis = list(title = "Año"),
+  yaxis = list(title = "Índice Legal"),
+  legend = list(title=list(text="País"))
+)
+
+
+```{r}
+```
+
+
+### Evolución del Índice Legal: Top 10 inferior países y promedio mundial
+
+Este gráfico de líneas representa la evolución del índice legal de los países con peores puntuaciones, comparados con el promedio mundial. Permite observar cómo ha cambiado la situación legal de la mujer a lo largo del tiempo en estos países y si se han producido mejoras o estancamientos. La línea del promedio mundial sirve de referencia para contextualizar las tendencias nacionales.
+
+```{r nombre-nuevo-chunk}
+
+# Filtrar bottom 10 países 2023 (los de menor puntuación)
+bottom10_2023 <- df %>%
+  filter(year == 2023) %>%
+  arrange(wbl_index) %>%
+  slice(1:10) %>%
+  pull(country)
+
+df_bottom10 <- df %>% filter(country %in% bottom10_2023)
+
+df_world <- df %>%
+  group_by(year) %>%
+  summarise(wbl_index = mean(wbl_index, na.rm = TRUE)) %>%
+  mutate(country = "Mundial")
+
+# Paleta 
+plotly_colors <- c("#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+                   "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+                   "#FF97FF", "#FECB52")
+
+fig <- plot_ly()
+
+# Líneas suavizadas
+for(i in seq_along(bottom10_2023)) {
+  pais <- bottom10_2023[i]
+  fig <- fig %>% add_trace(
+    data = df_bottom10[df_bottom10$country == pais, ],
+    x = ~year,
+    y = ~wbl_index,
+    type = 'scatter',
+    mode = 'lines',
+    name = pais,
+    line = list(color = plotly_colors[i], width = 2, shape = "spline"),
+    hoverinfo = 'text',
+    text = ~paste0('<b>', pais, '</b><br>Año: ', year, '<br>Puntuación: ', wbl_index)
+  )
+}
+
+# Línea mundial gruesa y naranja brillante
+fig <- fig %>% add_trace(
+  data = df_world,
+  x = ~year,
+  y = ~wbl_index,
+  type = 'scatter',
+  mode = 'lines',
+  name = "Promedio mundial",
+  line = list(color = "#FF9100", width = 6, shape = "spline"),
+  hoverinfo = 'text',
+  text = ~paste0('<b>Promedio mundial</b><br>Año: ', year, '<br>Puntuación: ', wbl_index)
+)
+
+fig %>% layout(
+  title = "Evolución del índice legal: Bottom 10 países y promedio mundial",
+  xaxis = list(title = "Año"),
+  yaxis = list(title = "Índice Legal"),
+  legend = list(title=list(text="País"))
+)
+```
