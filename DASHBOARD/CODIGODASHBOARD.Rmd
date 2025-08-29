@@ -4,19 +4,18 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
-    library(flexdashboard)
 
 ---
 
 ```{r setup, include=FALSE}
 
 #cargar bibliotecas
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 library(flexdashboard)
 library(readr)
 library(tidyverse)
 library(leaflet)
 library(dplyr)
-library(readr)
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(sf)
@@ -35,7 +34,7 @@ Este mapa muestra la puntuación obtenida por cada país en el índice legal de 
 
 ```{r}
 # Cargar datos
-df <- read_csv("datos/sg_law_indx_clean.csv")
+df <- read_csv("DATOS/sg_law_indx_clean.csv")
 
 # Tomar solo el último año para cada país
 df_latest <- df %>%
@@ -162,12 +161,10 @@ fig %>% layout(
   legend = list(title=list(text="País"))
 )
 
-
-```{r}
 ```
 
 
-### Evolución del Índice Legal: Top 10 inferior países y promedio mundial
+### Evolución del Índice Legal: Bottom 10 países y promedio mundial
 
 Este gráfico de líneas representa la evolución del índice legal de los países con peores puntuaciones, comparados con el promedio mundial. Permite observar cómo ha cambiado la situación legal de la mujer a lo largo del tiempo en estos países y si se han producido mejoras o estancamientos. La línea del promedio mundial sirve de referencia para contextualizar las tendencias nacionales.
 
