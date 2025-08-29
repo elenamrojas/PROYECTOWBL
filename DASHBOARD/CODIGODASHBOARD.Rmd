@@ -35,8 +35,7 @@ Este mapa muestra la puntuación obtenida por cada país en el índice legal de 
 ```{r}
 # Cargar datos
 library(here)
-df <- readr::read_csv(here("data", "sg_law_indx_clean.csv"))
-
+df <- readr::read_csv(here("DATOS", "sg_law_indx_clean.csv"))
 
 # Tomar solo el último año para cada país
 df_latest <- df %>%
