@@ -1,0 +1,120 @@
+---
+title: "Women, Business and the Law (WBL)"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(readr)
+library(here)
+library(knitr)
+library(kableExtra)
+
+df <- read_csv(here("DATOS", "sg_law_indx_clean.csv"))
+ref_year <- max(df$year, na.rm = TRUE)
+```
+ 
+### Introducción
+
+El proyecto Women, Business and the Law (WBL) analiza cómo varía la legislación sobre igualdad de género en el mundo.
+
+**Objetivos principales:**
+
+- Analizar la evolución global del índice WBL.
+
+- Identificar los países con mejores y peores puntuaciones.
+
+- Evaluar la tendencia general.
+
+#### Tabla resumen
+
+```{r}
+
+tabla <- df %>%
+  filter(year == ref_year) %>%
+  summarise(
+    `Nº de países` = n_distinct(country),
+    `Media índice WBL` = round(mean(wbl_index, na.rm = TRUE), 2),
+    `Mínimo` = min(wbl_index, na.rm = TRUE),
+    `Máximo` = max(wbl_index, na.rm = TRUE)
+  )
+
+kable(tabla, format = "html", caption = "Indicadores clave del índice WBL") %>%
+  kable_styling("striped", full_width = F)
+
+```
+Column {data-width=50}
+---------------------------------------------------------------------------
+
+### Interpretación
+
+- En el año 2023, el promedio global fue de 77.77 puntos
+
+- El país con mayor puntuación obtuvo 100 puntos
+
+- El país con menor puntuación registró 26.3 puntos.
+
+- Esto refleja una brecha legal importante en muchos contextos.
+
+
+Column {data-width=50}
+-----------------------------------------------------------------------
+
+### Evolución del índice legal
+
+
+```{r}
+top3 <- df %>%
+  filter(year == ref_year) %>%
+  arrange(desc(wbl_index)) %>%
+  slice(1:3) %>%
+  pull(country)
+
+bottom3 <- df %>%
+  filter(year == ref_year) %>%
+  arrange(wbl_index) %>%
+  slice(1:3) %>%
+  pull(country)
+
+df_top_bottom <- df %>% filter(country %in% c(top3, bottom3))
+
+df_world <- df %>%
+  group_by(year) %>%
+  summarise(wbl_index = mean(wbl_index, na.rm = TRUE), .groups = "drop") %>%
+  mutate(country = "Promedio mundial")
+
+df_plot <- bind_rows(df_top_bottom, df_world)
+
+ggplot(df_plot, aes(x = year, y = wbl_index, color = country)) +
+  geom_line(size = 1) +
+  labs(
+    title = "Evolución del índice WBL",
+    x = "Año", y = "Índice", color = "País"
+  ) +
+  theme_minimal()
+
+
+```
+
+#### Comentarios
+
+- El promedio mundial sube lentamente, reflejando mejoras graduales.
+
+- Los países con mejor puntuación han alcanzado niveles máximos.
+
+- Algunos países siguen muy por debajo del estándar internacional.
+
+Column {data-width=50}
+----------------------------------------------------------------------
+
+### Conclusión
+
+El índice WBL evidencia desigualdades persistentes en legislación de género.
+
+El análisis permite destacar casos de éxito y países con necesidad urgente de mejora.
+
+Se confirma el valor del análisis de datos reproducible mediante R y flexdashboard.
